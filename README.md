@@ -34,3 +34,7 @@ dotnet run -- -i input.html -o output.md
 - Checkboxes (checked/unchecked)
 - Links in markdown format
 - HTML entity decoding
+
+## Disclaimer
+
+This project was vibe coded and tested in June 2025. The implementation is tightly coupled to Microsoft Loop's HTML and CSS structure. It is likely to break in the future.
