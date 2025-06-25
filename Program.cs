@@ -115,12 +115,12 @@ Console.WriteLine($"Extracted {textContent.Split('\n', StringSplitOptions.Remove
 
 static void ShowHelp()
 {
-    Console.WriteLine("NotesExtractor - Extract meaningful content from Microsoft Loop HTML exports");
+    Console.WriteLine("LoopToMd - Extract meaningful content from Microsoft Loop HTML exports");
     Console.WriteLine();
     Console.WriteLine("Usage:");
-    Console.WriteLine("  NotesExtractor -i <input-file> -o <output-file>");
-    Console.WriteLine("  NotesExtractor --input <input-file> --output <output-file>");
-    Console.WriteLine("  NotesExtractor <input-file> -o <output-file>");
+    Console.WriteLine("  LoopToMd -i <input-file> -o <output-file>");
+    Console.WriteLine("  LoopToMd --input <input-file> --output <output-file>");
+    Console.WriteLine("  LoopToMd <input-file> -o <output-file>");
     Console.WriteLine();
     Console.WriteLine("Options:");
     Console.WriteLine("  -i, --input <file>     Input HTML file (required)");
@@ -128,9 +128,9 @@ static void ShowHelp()
     Console.WriteLine("  -h, --help             Show this help message");
     Console.WriteLine();
     Console.WriteLine("Examples:");
-    Console.WriteLine("  NotesExtractor -i raw.html -o extracted_text.md");
-    Console.WriteLine("  NotesExtractor --input notes.html --output notes.md");
-    Console.WriteLine("  NotesExtractor myfile.html -o output.md");
+    Console.WriteLine("  LoopToMd -i raw.html -o extracted_text.md");
+    Console.WriteLine("  LoopToMd --input notes.html --output notes.md");
+    Console.WriteLine("  LoopToMd myfile.html -o output.md");
 }
 
 

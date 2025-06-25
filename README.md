@@ -1,4 +1,4 @@
-# NotesExtractor
+# LoopToMd
 
 Extracts content from Microsoft Loop HTML exports to markdown.
 
