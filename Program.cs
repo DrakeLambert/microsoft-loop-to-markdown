@@ -128,6 +128,9 @@ foreach (var contentElement in contentElements)
 
 var textContent = result.ToString();
 
+// Collapse consecutive blank lines so there are never two or more blank lines in a row
+textContent = CollapseConsecutiveBlankLines(textContent);
+
 // Write to output file
 File.WriteAllText(outputPath, textContent, Encoding.UTF8);
 
@@ -246,6 +249,13 @@ void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentL
     if (node.GetAttributeValue("class", "").Contains("scriptor-listItem"))
     {
         var indentLevel = GetIndentationLevel(node);
+        
+        // Check if this is the start of a new list sequence (indent level 0 and previous sibling is not a list item)
+        if (indentLevel == 0 && IsStartOfList(node))
+        {
+            result.AppendLine(); // Add blank line before list
+        }
+        
         // Process children with the detected indentation level
         foreach (var child in node.ChildNodes)
         {
@@ -254,6 +264,13 @@ void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentL
                 ExtractTextFromNode(child, result, indentLevel, isFirstPage);
             }
         }
+        
+        // Check if this is the end of a list sequence (indent level 0 and next sibling is not a list item)
+        if (indentLevel == 0 && IsEndOfList(node))
+        {
+            result.AppendLine(); // Add blank line after list
+        }
+        
         return;
     }
 
@@ -417,6 +434,32 @@ int GetIndentationLevel(HtmlNode listItemNode)
     return 0; // Default to no indentation
 }
 
+bool IsStartOfList(HtmlNode currentListItem)
+{
+    // Check if the previous sibling is not a list item
+    var prevSibling = currentListItem.PreviousSibling;
+    while (prevSibling != null && prevSibling.NodeType != HtmlNodeType.Element)
+    {
+        prevSibling = prevSibling.PreviousSibling;
+    }
+    
+    // If no previous sibling or previous sibling is not a list item, this is the start of a list
+    return prevSibling == null || !prevSibling.GetAttributeValue("class", "").Contains("scriptor-listItem");
+}
+
+bool IsEndOfList(HtmlNode currentListItem)
+{
+    // Check if the next sibling is not a list item or doesn't exist
+    var nextSibling = currentListItem.NextSibling;
+    while (nextSibling != null && nextSibling.NodeType != HtmlNodeType.Element)
+    {
+        nextSibling = nextSibling.NextSibling;
+    }
+    
+    // If no next sibling or next sibling is not a list item, this is the end of the list
+    return nextSibling == null || !nextSibling.GetAttributeValue("class", "").Contains("scriptor-listItem");
+}
+
 bool IsDocumentTitle(HtmlNode node, string classAttribute)
 {
     // Check if this node contains significant text that could be the document title
@@ -471,5 +514,12 @@ bool ShouldSkipNode(HtmlNode node, string classAttribute)
     }
 
     return false;
+}
+
+string CollapseConsecutiveBlankLines(string text)
+{
+    // Replace multiple consecutive newlines with just two newlines (one blank line)
+    // This regex matches 3 or more newlines and replaces them with exactly 2 newlines
+    return System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
 }
 
