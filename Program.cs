@@ -101,10 +101,31 @@ Console.WriteLine($"Loading HTML file: {htmlPath}");
 var doc = new HtmlDocument();
 doc.Load(htmlPath);
 
-// Find and extract content from the main content area
-var mainElement = doc.DocumentNode.SelectSingleNode("//main") ?? throw new Exception("Main content area not found in the HTML file.");
+// Find and extract content from the document content area, excluding UI elements
+// Target scriptor-pageFrame elements which contain the actual document content
+var contentElements = doc.DocumentNode.SelectNodes("//div[contains(@class, 'scriptor-pageFrame')]");
+
+if (contentElements == null || contentElements.Count == 0)
+{
+    // Fallback to main element if scriptor-pageFrame not found
+    var mainElement = doc.DocumentNode.SelectSingleNode("//main");
+    if (mainElement == null)
+    {
+        throw new Exception("Content area not found in the HTML file.");
+    }
+    contentElements = new HtmlNodeCollection(mainElement.ParentNode) { mainElement };
+}
+
 var result = new StringBuilder();
-ExtractTextFromNode(mainElement, result, 0);
+
+// Process each content page frame
+bool isFirstContent = true;
+foreach (var contentElement in contentElements)
+{
+    ExtractTextFromNode(contentElement, result, 0, isFirstContent);
+    isFirstContent = false;
+}
+
 var textContent = result.ToString();
 
 // Write to output file
@@ -134,8 +155,27 @@ static void ShowHelp()
 }
 
 
-void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentLevel = 0)
+void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentLevel = 0, bool isFirstPage = false)
 {
+    // Skip UI elements and navigation components
+    var classAttribute = node.GetAttributeValue("class", "");
+    if (ShouldSkipNode(node, classAttribute))
+    {
+        return;
+    }
+
+    // Check if this might be the document title (first significant text on first page)
+    if (isFirstPage && IsDocumentTitle(node, classAttribute))
+    {
+        var titleText = NormalizeWhitespace(node.InnerText);
+        if (!string.IsNullOrWhiteSpace(titleText))
+        {
+            result.AppendLine($"# {titleText}");
+            result.AppendLine(); // Add blank line after title
+        }
+        return;
+    }
+
     // Check if this is a link element
     if (node.Name.ToLower() == "a" && !string.IsNullOrWhiteSpace(node.GetAttributeValue("href", "")))
     {
@@ -162,10 +202,10 @@ void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentL
             // Convert aria-level to markdown heading
             var markdownHeading = headingLevel switch
             {
-                "1" => "# ",
-                "2" => "## ",
-                "3" => "### ",
-                _ => "# " // Default to h1 for any other levels
+                "1" => "## ",
+                "2" => "### ",
+                "3" => "#### ",
+                _ => "" // Default to body for any other levels
             };
             
             result.AppendLine($"{markdownHeading}{headingText}");
@@ -195,7 +235,7 @@ void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentL
         {
             if (child.NodeType == HtmlNodeType.Element)
             {
-                ExtractTextFromNode(child, result, currentIndentLevel);
+                ExtractTextFromNode(child, result, currentIndentLevel, isFirstPage);
             }
         }
         return;
@@ -210,7 +250,7 @@ void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentL
         {
             if (child.NodeType == HtmlNodeType.Element)
             {
-                ExtractTextFromNode(child, result, indentLevel);
+                ExtractTextFromNode(child, result, indentLevel, isFirstPage);
             }
         }
         return;
@@ -232,7 +272,7 @@ void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentL
         {
             if (child.NodeType == HtmlNodeType.Element)
             {
-                ExtractTextFromNode(child, result, currentIndentLevel);
+                ExtractTextFromNode(child, result, currentIndentLevel, isFirstPage);
             }
         }
     }
@@ -374,5 +414,61 @@ int GetIndentationLevel(HtmlNode listItemNode)
     }
     
     return 0; // Default to no indentation
+}
+
+bool IsDocumentTitle(HtmlNode node, string classAttribute)
+{
+    // Check if this node contains significant text that could be the document title
+    var innerText = NormalizeWhitespace(node.InnerText);
+    
+    // Skip empty nodes or very short text
+    if (string.IsNullOrWhiteSpace(innerText) || innerText.Length < 3)
+    {
+        return false;
+    }
+    
+    // Look for the actual document title within scriptor content
+    // The document title appears as scriptor-textRun within scriptor-paragraph
+    if (classAttribute.Contains("scriptor-textRun") && 
+        classAttribute.Contains("scriptor-inline") &&
+        node.ParentNode != null)
+    {
+        var parentClass = node.ParentNode.GetAttributeValue("class", "");
+        if (parentClass.Contains("scriptor-paragraph"))
+        {
+            // This is likely the document title - it's the first significant scriptor content
+            // Additional validation: ensure it's not part of a list or other structure
+            var grandParent = node.ParentNode.ParentNode;
+            if (grandParent != null)
+            {
+                var grandParentClass = grandParent.GetAttributeValue("class", "");
+                // Make sure it's not part of a list structure
+                if (!grandParentClass.Contains("scriptor-listItem"))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    
+    return false;
+}
+
+bool ShouldSkipNode(HtmlNode node, string classAttribute)
+{
+    // Skip Fluent UI components and generated CSS classes
+    if (classAttribute.Contains("fui-") ||    // Fluent UI components
+        classAttribute.Contains("___"))       // Generated CSS classes with triple underscore
+    {
+        return true;
+    }
+    
+    // Skip SVG elements (icons)
+    if (node.Name.ToLower() == "svg")
+    {
+        return true;
+    }
+
+    return false;
 }
 
