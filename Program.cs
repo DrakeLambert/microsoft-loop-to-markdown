@@ -208,6 +208,7 @@ void ExtractTextFromNode(HtmlNode node, StringBuilder result, int currentIndentL
                 _ => "" // Default to body for any other levels
             };
             
+            result.AppendLine(); // Add blank line before heading
             result.AppendLine($"{markdownHeading}{headingText}");
             result.AppendLine(); // Add blank line after heading
         }
